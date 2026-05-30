@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поликлиника ИИ</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 400px; margin: 50px auto; padding: 20px; line-height: 1.6; }
+        input, textarea, button { width: 100%; padding: 10px; margin: 8px 0; box-sizing: border-box; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Заявка к врачу</h2>
+    <form action="/submit" method="POST">
+        <input type="text" name="name" placeholder="Ваше имя" required>
+        <input type="text" name="doctor" placeholder="Какой врач нужен? (например, Терапевт)" required>
+        <textarea name="symptoms" rows="4" placeholder="Что вас беспокоит? (симптомы)" required></textarea>
+        <button type="submit">Отправить заявку</button>
+    </form>
+</body>
+</html>
+Используйте код с осторожностью.Нажмите Commit changes для сохранения.Создаем главный код сервера (app.py):Вернитесь в корень репозитория (нажмите на название clinic-ai-bot вверху).Нажмите Add file -> Create new file.Назовите файл: app.pyВставьте код, который принимает данные и отправляет их в ИИ:pythonimport os
+from flask import Flask, render_template, request
+from openai import OpenAI
+
+app = Flask(__name__)
+
+# Получаем API ключ из настроек сервера безопасности
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/submit', methods=['POST'])
+def submit():
+    name = request.form.get('name')
+    doctor = request.form.get('doctor')
+    symptoms = request.form.get('symptoms')
+
+    prompt = f"Ты — умный ИИ-ассистент регистратуры поликлиники. Пациент по имени {name} оставил заявку к врачу-специалисту: {doctor}. Симптомы пациента: {symptoms}. Напиши вежливый автоматический ответ: подтверди, что заявка принята, и дай краткую общую рекомендацию (без постановки точного диагноза, напомни, что точный диагноз ставит только врач)."
+
+    try:
+        # Запрос к нейросети
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        ai_response = response.choices[0].message.content
+    except Exception as e:
+        ai_response = f"Заявка принята! Но бот временно занят. Скоро с вами свяжется администратор."
+
+    # Возвращаем красивый ответ пользователю
+    return f"""
+    <div style="font-family: Arial; max-width: 500px; margin: 50px auto; padding: 20px; border: 1px solid #ccc;">
+        <h2>Ответ от ИИ-Поликлиники</h2>
+        <p style="white-space: pre-line;">{ai_response}</p>
+        <br>
+        <a href="/" style="color: #007bff;">Отправить новую заявку</a>
+    </div>
+    """
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
